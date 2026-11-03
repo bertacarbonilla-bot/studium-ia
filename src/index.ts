@@ -39,18 +39,21 @@ export default {
       }
 
       const result = await env.AI.run(
-        "@cf/meta/llama-3.1-8b-instruct",
-        {"@cf/zai-org/glm-4.7-flash",
+        "@cf/zai-org/glm-4.7-flash",
+        {
           messages: [
             {
               role: "system",
-              content: "Eres el asistente educativo de Studium. Ayudas a estudiantes a aprender, estudiar y organizarse."
+              content: "Eres el asistente educativo de Studium. Ayudas a estudiantes a aprender, estudiar y organizarse. Explicas de forma clara, sencilla y didáctica."
             },
             {
               role: "user",
               content: message
             }
-          ]
+          ],
+          chat_template_kwargs: {
+            enable_thinking: false
+          }
         }
       );
 
