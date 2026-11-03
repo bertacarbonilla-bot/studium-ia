@@ -1,8 +1,9 @@
+
 interface Env {
   AI: {
     run: (model: string, input: {
       messages: { role: string; content: string }[];
-    }) => Promise<unknown>;
+    }) => Promise<any>;
   };
 }
 
@@ -26,7 +27,9 @@ export default {
     }
 
     try {
-      const { message } = await request.json() as { message?: string };
+      const { message } = await request.json() as {
+        message?: string;
+      };
 
       if (!message || typeof message !== "string") {
         return Response.json(
@@ -43,16 +46,30 @@ export default {
               role: "system",
               content: "Eres el asistente educativo de Studium. Ayudas a estudiantes a aprender, estudiar y organizarse."
             },
-            { role: "user", content: message }
+            {
+              role: "user",
+              content: message
+            }
           ]
         }
       );
 
-      return Response.json(result, { headers: corsHeaders });
-    } catch {
+      return Response.json(result, {
+        headers: corsHeaders
+      });
+
+    } catch (error) {
       return Response.json(
-        { error: "Error al procesar la solicitud" },
-        { status: 500, headers: corsHeaders }
+        {
+          error: "Error al procesar la solicitud",
+          details: error instanceof Error
+            ? error.message
+            : String(error)
+        },
+        {
+          status: 500,
+          headers: corsHeaders
+        }
       );
     }
   }
