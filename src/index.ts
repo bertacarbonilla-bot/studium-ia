@@ -286,7 +286,7 @@ export default {
       const result = await env.AI.run(MODEL, {
         messages: conversation,
         // Reserve enough output space for a complete 8-question exam while bounding other responses.
-        max_tokens: isExamRequest ? 4096 : 2048,
+        ...(isExamRequest ? { max_tokens: 4096 } : {}),
         chat_template_kwargs: {
           enable_thinking: false,
         },
