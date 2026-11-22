@@ -7,6 +7,7 @@ interface Env {
         chat_template_kwargs?: {
           enable_thinking?: boolean;
         };
+        max_tokens?: number;
       }
     ) => Promise<any>;
   };
@@ -279,8 +280,13 @@ export default {
         );
       }
 
+      const lastUserMessage = [...conversation].reverse().find((item) => item.role === "user")?.content ?? "";
+      const isExamRequest = /Crea un examen de práctica|GENERACIÓN DE EXÁMENES DE STUDIUM/i.test(lastUserMessage);
+
       const result = await env.AI.run(MODEL, {
         messages: conversation,
+        // Reserve enough output space for a complete 8-question exam while bounding other responses.
+        ...(isExamRequest ? { max_tokens: 4096 } : {}),
         chat_template_kwargs: {
           enable_thinking: false,
         },
