@@ -1,5 +1,16 @@
 interface Env {
-  GEMINI_API_KEY: string;
+  AI: {
+    run: (
+      model: string,
+      input: {
+        messages: { role: string; content: string }[];
+        chat_template_kwargs?: {
+          enable_thinking?: boolean;
+        };
+        max_tokens?: number;
+      }
+    ) => Promise<any>;
+  };
 }
 
 type IncomingMessage = {
@@ -12,7 +23,7 @@ type RequestBody = {
   messages?: IncomingMessage[];
 };
 
-const MODEL = "gemini-3.8-flash";
+const MODEL = "@cf/zai-org/glm-4.7-flash";
 
 const MAX_MESSAGES = 30;
 const MAX_MESSAGE_LENGTH = 16000;
@@ -285,106 +296,16 @@ export default {
       const lastUserMessage = [...conversation].reverse().find((item) => item.role === "user")?.content ?? "";
       const isExamRequest = /Crea un examen de práctica|GENERACIÓN DE EXÁMENES DE STUDIUM/i.test(lastUserMessage);
 
-      if (!env.GEMINI_API_KEY?.trim()) {
-        return jsonResponse(
-          { error: "La conexión con Gemini todavía no está configurada." },
-          503,
-          corsHeaders
-        );
-      }
-
-      const systemInstruction = conversation[0]?.content ?? SYSTEM_PROMPT;
-      const contents = conversation.slice(1).map((item) => ({
-        role: item.role === "assistant" ? "model" : "user",
-        parts: [{ text: item.content }],
-      }));
-
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": env.GEMINI_API_KEY,
-          },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: systemInstruction }],
-            },
-            contents,
-            generationConfig: {
-              // Thinking is enabled at a moderate level for educational explanations.
-              // maxOutputTokens also bounds the model's internal thinking tokens.
-              maxOutputTokens: isExamRequest ? 8192 : 4096,
-              thinkingConfig: {
-                thinkingLevel: "MEDIUM",
-              },
-            },
-          }),
-          signal: request.signal,
-        }
-      );
-
-      const geminiBody = await geminiResponse.json().catch(() => null) as {
-        candidates?: {
-          content?: { parts?: { text?: string }[] };
-          finishReason?: string;
-        }[];
-        error?: { message?: string; status?: string };
-      } | null;
-
-      if (!geminiResponse.ok) {
-        console.error("Gemini API error:", {
-          status: geminiResponse.status,
-          apiStatus: geminiBody?.error?.status,
-          message: geminiBody?.error?.message,
-        });
-
-        const message =
-          geminiResponse.status === 429
-            ? "Gemini ha alcanzado temporalmente el límite de uso gratuito. Inténtalo más tarde."
-            : geminiResponse.status === 403
-              ? "La clave de Gemini no tiene permiso para utilizar este modelo."
-              : "No se ha podido obtener una respuesta de Gemini. Inténtalo de nuevo.";
-
-        return jsonResponse(
-          { error: message },
-          geminiResponse.status === 429 ? 429 : 502,
-          corsHeaders
-        );
-      }
-
-      const answer = geminiBody?.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text ?? "")
-        .join("")
-        .trim();
-
-      if (!answer) {
-        console.error("Gemini returned no text:", {
-          finishReason: geminiBody?.candidates?.[0]?.finishReason,
-        });
-        return jsonResponse(
-          { error: "Gemini no ha devuelto una respuesta de texto. Inténtalo de nuevo." },
-          502,
-          corsHeaders
-        );
-      }
-
-      // Keep the response shape expected by the current Studium frontend.
-      return jsonResponse(
-        {
-          choices: [
-            {
-              message: {
-                role: "assistant",
-                content: answer,
-              },
-            },
-          ],
+      const result = await env.AI.run(MODEL, {
+        messages: conversation,
+        // Reserve enough output space for a complete 8-question exam while bounding other responses.
+        ...(isExamRequest ? { max_tokens: 4096 } : {}),
+        chat_template_kwargs: {
+          enable_thinking: false,
         },
-        200,
-        corsHeaders
-      );
+      });
+
+      return jsonResponse(result, 200, corsHeaders);
     } catch (error) {
       console.error("Error en Studium AI:", error);
 
