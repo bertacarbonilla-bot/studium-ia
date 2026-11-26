@@ -23,7 +23,7 @@ type RequestBody = {
   messages?: IncomingMessage[];
 };
 
-const MODEL = "@cf/zai-org/glm-4.7-flash";
+const MODEL = "@cf/google/gemma-4-26b-a4b-it";
 
 const MAX_MESSAGES = 30;
 const MAX_MESSAGE_LENGTH = 16000;
@@ -301,7 +301,8 @@ export default {
         // Reserve enough output space for a complete 8-question exam while bounding other responses.
         ...(isExamRequest ? { max_tokens: 4096 } : {}),
         chat_template_kwargs: {
-          enable_thinking: false,
+          enable_thinking: true,
+          clear_thinking: false,
         },
       });
 
