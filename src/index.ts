@@ -6,6 +6,7 @@ interface Env {
         messages: { role: string; content: string }[];
         chat_template_kwargs?: {
           enable_thinking?: boolean;
+          clear_thinking?: boolean;
         };
         max_tokens?: number;
       }
